@@ -35,5 +35,37 @@ def clean_data(d):
     d[['height', 'weight', 'salary']] = d[['height', 'weight', 'salary']].astype('float')
     d['country'] = d['country'].map(category)
     d['draft_round'].replace('Undrafted', '0', inplace=True)
+
     return d
 
+
+def feature_data(data):
+    if not data.empty:
+        data.version = data['version'].map(lambda x: (2020 if x[-2:] == 20 else 2021))
+        data['version'] = pd.to_datetime(data['version'], format='%Y' )
+        data['age'] = (data['version'] - data['b_day']).astype('timedelta64[Y]')
+        data['experience'] = data['version'].dt.year - data['draft_year'].dt.year - 1
+        data['bmi'] = data['weight'] / data['height'] ** 2
+        data.drop(columns=['version','b_day', 'draft_year', 'weight', 'height', ], inplace=True)
+
+        cols = []
+        for col in data.columns:
+            if data[col].dtype == "object":
+                cols.append(col)
+        data.drop(data.loc[:, cols].loc[:, data.nunique() > 50], axis=1, inplace=True)
+        return data
+
+def multicol_data(df):
+    cols = df.describe().columns
+    corrs = df[cols].corr()
+    numeric_cols = list(set(corrs.columns) - set(["salary"]))
+    to_drop = list()
+    for i in range(num_cols := len(numeric_cols)):
+        for j in range(i + 1, num_cols):
+            if abs(corrs[numeric_cols[i]][numeric_cols[j]]) >= 0.5:
+                if corrs["salary"][numeric_cols[i]] > corrs["salary"][numeric_cols[j]]:
+                    to_drop.append(numeric_cols[j])
+                else:
+                    to_drop.append(numeric_cols[i])
+
+    return df.drop(to_drop, axis=1)
