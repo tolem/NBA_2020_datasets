@@ -1,6 +1,9 @@
 import pandas as pd
 import os
 import requests
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder
+
 
 # Checking ../Data directory presence
 if not os.path.exists('../Data'):
@@ -69,3 +72,23 @@ def multicol_data(df):
                     to_drop.append(numeric_cols[i])
 
     return df.drop(to_drop, axis=1)
+
+
+def transform_data(df):
+    num_feat_df = df.select_dtypes('number')  # numerical features
+    cat_feat_df = df.select_dtypes('object')
+    y = num_feat_df['salary']
+    num_feat_df.drop(columns='salary', inplace=True)
+    scaler = StandardScaler()
+    enc = OneHotEncoder(handle_unknown='ignore')
+    enc.fit(cat_feat_df)
+    col_names = enc.categories_
+    category = [x for sublist in col_names for x in sublist]
+    scaler.fit(num_feat_df)
+    num, cat = scaler.transform(num_feat_df), enc.transform(cat_feat_df)
+    num, cat = pd.DataFrame(num, columns=num_feat_df.columns), pd.DataFrame.sparse.from_spmatrix(cat, columns=category)
+
+    X = pd.concat([num, pd.DataFrame(cat)], axis=1)
+
+    return X, y
+
